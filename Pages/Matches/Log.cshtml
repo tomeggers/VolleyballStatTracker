@@ -20,23 +20,82 @@
     .btn-them { background: #f9d6d6; color: #a31515; }
     .btn-neutral { background: #e6e6e6; color: #333; }
     .reception-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+    .set-tabs { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+    .set-tab { padding: 0.4rem 0.75rem; border: 1px solid #ccc; border-radius: 6px; text-decoration: none; color: #333; }
+    .set-tab.active { border-color: #333; font-weight: bold; }
+    .set-tab.won { background: #d4f4d4; }
+    .set-tab.lost { background: #f9d6d6; }
+    .set-over { text-align: center; font-weight: bold; }
+    .finished-badge { background: #333; color: #fff; border-radius: 4px; padding: 0.1rem 0.5rem; font-size: 0.85rem; }
+    .match-actions { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
+    .match-actions button { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-end { background: #333; color: #fff; }
 </style>
 
-<p>@Model.CurrentSet.Match!.Opponent &ndash; Set @Model.CurrentSet.SetNumber</p>
+<p>
+    vs @Model.Match.Opponent &ndash; @Model.Match.Date.ToString("d MMM yyyy")
+    &middot; Sets <strong>@Model.SetsWon&ndash;@Model.SetsLost</strong>
+    @if (Model.Match.IsFinished)
+    {
+        <span class="finished-badge">Finished</span>
+    }
+</p>
+
+<nav class="set-tabs">
+    @foreach (var s in Model.SetSummaries)
+    {
+        <a asp-page="Log" asp-route-setId="@s.SetId"
+           class="set-tab @(s.SetId == Model.CurrentSet.Id ? "active" : "") @(s.Result == SetResult.Won ? "won" : s.Result == SetResult.Lost ? "lost" : "")">
+            Set @s.SetNumber <small>@s.Us&ndash;@s.Them</small>
+        </a>
+    }
+</nav>
 
 <div class="scoreboard">
-    <span class="us">US @Model.UsScore</span> &ndash; <span class="them">@Model.ThemScore OPPONENT</span>
+    <span class="us">US @Model.Current.Us</span> &ndash; <span class="them">@Model.Current.Them OPPONENT</span>
 </div>
 
-<div class="top-actions">
-    <form method="post" asp-page-handler="OpponentPoint" asp-route-setId="@Model.CurrentSet.Id">
-        <button type="submit" class="btn-them">Opponent point (their kill/ace)</button>
-    </form>
-    <form method="post" asp-page-handler="Undo" asp-route-setId="@Model.CurrentSet.Id">
-        <button type="submit" class="btn-neutral">Undo last entry</button>
-    </form>
+@if (Model.Current.Result != SetResult.InProgress && !Model.Match.IsFinished)
+{
+    <p class="set-over">Set @Model.CurrentSet.SetNumber @(Model.Current.Result == SetResult.Won ? "won" : "lost"). Start the next set or end the match below.</p>
+}
+
+@if (!Model.Match.IsFinished)
+{
+    <div class="top-actions">
+        <form method="post" asp-page-handler="OpponentPoint" asp-route-setId="@Model.CurrentSet.Id">
+            <button type="submit" class="btn-them">Opponent point (their kill/ace)</button>
+        </form>
+        <form method="post" asp-page-handler="Undo" asp-route-setId="@Model.CurrentSet.Id">
+            <button type="submit" class="btn-neutral">Undo last entry</button>
+        </form>
+    </div>
+}
+
+<div class="match-actions">
+    @if (Model.HasNextSet || Model.CanAddSet)
+    {
+        <form method="post" asp-page-handler="NextSet" asp-route-setId="@Model.CurrentSet.Id">
+            <button type="submit" class="btn-neutral">@(Model.HasNextSet ? "Go to" : "Start") set @(Model.CurrentSet.SetNumber + 1) &rarr;</button>
+        </form>
+    }
+    @if (Model.Match.IsFinished)
+    {
+        <form method="post" asp-page-handler="ReopenMatch" asp-route-setId="@Model.CurrentSet.Id">
+            <button type="submit" class="btn-neutral">Reopen match</button>
+        </form>
+    }
+    else
+    {
+        <form method="post" asp-page-handler="EndMatch" asp-route-setId="@Model.CurrentSet.Id"
+              onsubmit="return confirm('End the match? You can reopen it later from the match.');">
+            <button type="submit" class="btn-end">End match</button>
+        </form>
+    }
 </div>
 
+@if (!Model.Match.IsFinished)
+{
 @foreach (var player in Model.Players)
 {
     <details class="player">
@@ -108,4 +167,5 @@
             }
         </div>
     </details>
+}
 }

@@ -1,0 +1,40 @@
+@page
+@model VolleyballStatTracker.Pages.Matches.IndexModel
+@{
+    ViewData["Title"] = "Matches";
+}
+
+<h1>Matches</h1>
+
+<p><a asp-page="Create">+ New match</a></p>
+
+@if (Model.Matches.Count == 0)
+{
+    <p>No matches yet.</p>
+}
+else
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Opponent</th>
+                <th>Sets</th>
+                <th>Status</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var row in Model.Matches)
+            {
+                <tr>
+                    <td>@row.Match.Date.ToString("d MMM yyyy")</td>
+                    <td>@row.Match.Opponent</td>
+                    <td>@row.SetsWon&ndash;@row.SetsLost</td>
+                    <td>@(row.Match.IsFinished ? "Finished" : "In progress")</td>
+                    <td><a asp-page="Log" asp-route-setId="@row.LatestSetId">@(row.Match.IsFinished ? "View" : "Continue")</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

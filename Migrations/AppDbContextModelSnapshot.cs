@@ -33,6 +33,9 @@ namespace VolleyballStatTracker.Migrations
                     b.Property<DateOnly>("Date")
                         .HasColumnType("date");
 
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Opponent")
                         .IsRequired()
                         .HasColumnType("nvarchar(max)");
