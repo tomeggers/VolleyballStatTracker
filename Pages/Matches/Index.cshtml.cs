@@ -9,11 +9,12 @@ public class IndexModel(AppDbContext db) : PageModel
 {
     public List<MatchRow> Matches { get; set; } = [];
 
-    public record MatchRow(Match Match, int SetsWon, int SetsLost, int LatestSetId);
+    public record MatchRow(Match Match, int SetsWon, int SetsLost, int? LatestSetId);
 
     public async Task OnGetAsync()
     {
         var matches = await db.Matches
+            .AsNoTracking()
             .Include(m => m.Sets)
                 .ThenInclude(s => s.StatEntries)
             .OrderByDescending(m => m.Date)
@@ -28,13 +29,13 @@ public class IndexModel(AppDbContext db) : PageModel
                 return StatRules.GetSetResult(s.SetNumber, us, them);
             }).ToList();
 
-            var latestSet = m.Sets.OrderByDescending(s => s.SetNumber).First();
+            var latestSet = m.Sets.OrderByDescending(s => s.SetNumber).FirstOrDefault();
 
             return new MatchRow(
                 m,
                 results.Count(r => r == SetResult.Won),
                 results.Count(r => r == SetResult.Lost),
-                latestSet.Id);
+                latestSet?.Id);
         }).ToList();
     }
 }

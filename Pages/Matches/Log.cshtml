@@ -30,6 +30,7 @@
     .match-actions { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
     .match-actions button { padding: 0.5rem 1rem; border: none; border-radius: 6px; cursor: pointer; }
     .btn-end { background: #333; color: #fff; }
+    button:disabled { opacity: 0.35; cursor: not-allowed; }
 </style>
 
 <p>
@@ -55,16 +56,16 @@
     <span class="us">US @Model.Current.Us</span> &ndash; <span class="them">@Model.Current.Them OPPONENT</span>
 </div>
 
-@if (Model.Current.Result != SetResult.InProgress && !Model.Match.IsFinished)
+@if (Model.IsSetOver && !Model.Match.IsFinished)
 {
-    <p class="set-over">Set @Model.CurrentSet.SetNumber @(Model.Current.Result == SetResult.Won ? "won" : "lost"). Start the next set or end the match below.</p>
+    <p class="set-over">Set @Model.CurrentSet.SetNumber @(Model.Current.Result == SetResult.Won ? "won" : "lost"). Score buttons are locked; assists and digs can still be added. Wrong score? Undo the last entry.</p>
 }
 
 @if (!Model.Match.IsFinished)
 {
     <div class="top-actions">
         <form method="post" asp-page-handler="OpponentPoint" asp-route-setId="@Model.CurrentSet.Id">
-            <button type="submit" class="btn-them">Opponent point (their kill/ace)</button>
+            <button type="submit" class="btn-them" disabled="@Model.IsLocked(StatType.OpponentPoint)">Opponent point (their kill/ace)</button>
         </form>
         <form method="post" asp-page-handler="Undo" asp-route-setId="@Model.CurrentSet.Id">
             <button type="submit" class="btn-neutral">Undo last entry</button>
@@ -102,56 +103,14 @@
         <summary>#@player.ShirtNumber &ndash; @player.Name</summary>
 
         <div class="actions">
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.Kill" />
-                <button type="submit" class="btn-us">Kill</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.AttackError" />
-                <button type="submit" class="btn-them">Attack error</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.AttackInPlay" />
-                <button type="submit" class="btn-neutral">Attack, in play</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.ServiceAce" />
-                <button type="submit" class="btn-us">Service ace</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.ServiceError" />
-                <button type="submit" class="btn-them">Service error</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.ServeInPlay" />
-                <button type="submit" class="btn-neutral">Serve, in play</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.BlockSolo" />
-                <button type="submit" class="btn-us">Block, solo</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.BlockAssist" />
-                <button type="submit" class="btn-us">Block, assist</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.Dig" />
-                <button type="submit" class="btn-neutral">Dig</button>
-            </form>
-            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
-                <input type="hidden" name="playerId" value="@player.Id" />
-                <input type="hidden" name="statType" value="@StatType.Assist" />
-                <button type="submit" class="btn-neutral">Assist</button>
-            </form>
+            @foreach (var (statType, label) in StatRules.PlayerActions)
+            {
+                <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                    <input type="hidden" name="playerId" value="@player.Id" />
+                    <input type="hidden" name="statType" value="@statType" />
+                    <button type="submit" class="@LogModel.ButtonClass(statType)" disabled="@Model.IsLocked(statType)">@label</button>
+                </form>
+            }
         </div>
 
         <div class="reception-row">
@@ -162,7 +121,7 @@
                     <input type="hidden" name="playerId" value="@player.Id" />
                     <input type="hidden" name="statType" value="@StatType.Reception" />
                     <input type="hidden" name="grade" value="@grade" />
-                    <button type="submit" class="@(grade == 0 ? "btn-them" : "btn-neutral")">@grade</button>
+                    <button type="submit" class="@LogModel.ButtonClass(StatType.Reception, grade)" disabled="@Model.IsLocked(StatType.Reception, grade)">@grade</button>
                 </form>
             }
         </div>

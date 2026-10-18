@@ -33,6 +33,34 @@ public enum SetResult
 public static class StatRules
 {
     public const int MaxSets = 5;
+    public const int SetsToWin = 3;
+
+    // The player buttons on the Log page, in display order. Reception is graded separately.
+    public static readonly (StatType Type, string Label)[] PlayerActions =
+    [
+        (StatType.Kill, "Kill"),
+        (StatType.AttackError, "Attack error"),
+        (StatType.AttackInPlay, "Attack, in play"),
+        (StatType.ServiceAce, "Service ace"),
+        (StatType.ServiceError, "Service error"),
+        (StatType.ServeInPlay, "Serve, in play"),
+        (StatType.BlockSolo, "Block, solo"),
+        (StatType.BlockAssist, "Block, assist"),
+        (StatType.Dig, "Dig"),
+        (StatType.Assist, "Assist")
+    ];
+
+    // Opponent points have no player; reception needs a 0-3 grade; nothing else takes a grade.
+    public static bool IsValidEntry(StatType statType, bool hasPlayer, int? grade) =>
+        Enum.IsDefined(statType) && statType switch
+        {
+            StatType.OpponentPoint => !hasPlayer && grade is null,
+            StatType.Reception => hasPlayer && grade is >= 0 and <= 3,
+            _ => hasPlayer && grade is null
+        };
+
+    public static bool IsMatchDecided(int setsWon, int setsLost) =>
+        setsWon >= SetsToWin || setsLost >= SetsToWin;
 
     public static (int Us, int Them) Score(IEnumerable<StatEntry> entries) =>
         (entries.Count(e => e.PointResult == PointResult.UsScored),

@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
@@ -11,24 +12,43 @@ public class IndexModel(AppDbContext db) : PageModel
     public List<Player> Players { get; set; } = [];
 
     [BindProperty]
+    [Required(ErrorMessage = "Enter a name.")]
+    [StringLength(Player.NameMaxLength)]
+    [Display(Name = "Name")]
     public string NewName { get; set; } = "";
 
     [BindProperty]
-    public int NewShirtNumber { get; set; }
+    [Required(ErrorMessage = "Enter a shirt number.")]
+    [Range(0, 99, ErrorMessage = "Shirt number must be 0 to 99.")]
+    [Display(Name = "Shirt number")]
+    public int? NewShirtNumber { get; set; }
 
     public async Task OnGetAsync()
     {
-        Players = await db.Players.OrderBy(p => p.ShirtNumber).ToListAsync();
+        await LoadPlayersAsync();
     }
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (!string.IsNullOrWhiteSpace(NewName))
+        if (ModelState.IsValid && await db.Players.AnyAsync(p => p.ShirtNumber == NewShirtNumber))
         {
-            db.Players.Add(new Player { Name = NewName, ShirtNumber = NewShirtNumber });
-            await db.SaveChangesAsync();
+            ModelState.AddModelError(nameof(NewShirtNumber), $"#{NewShirtNumber} is already taken.");
         }
 
+        if (!ModelState.IsValid)
+        {
+            await LoadPlayersAsync();
+            return Page();
+        }
+
+        db.Players.Add(new Player { Name = NewName.Trim(), ShirtNumber = NewShirtNumber!.Value });
+        await db.SaveChangesAsync();
+
         return RedirectToPage();
+    }
+
+    private async Task LoadPlayersAsync()
+    {
+        Players = await db.Players.AsNoTracking().OrderBy(p => p.ShirtNumber).ToListAsync();
     }
 }

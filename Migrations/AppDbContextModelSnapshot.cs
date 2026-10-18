@@ -38,7 +38,8 @@ namespace VolleyballStatTracker.Migrations
 
                     b.Property<string>("Opponent")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
 
@@ -55,14 +56,21 @@ namespace VolleyballStatTracker.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
 
                     b.Property<int>("ShirtNumber")
                         .HasColumnType("int");
 
                     b.HasKey("Id");
 
-                    b.ToTable("Players");
+                    b.HasIndex("ShirtNumber")
+                        .IsUnique();
+
+                    b.ToTable("Players", t =>
+                        {
+                            t.HasCheckConstraint("CK_Players_ShirtNumber", "[ShirtNumber] BETWEEN 0 AND 99");
+                        });
                 });
 
             modelBuilder.Entity("VolleyballStatTracker.Models.Set", b =>
@@ -81,9 +89,13 @@ namespace VolleyballStatTracker.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MatchId");
+                    b.HasIndex("MatchId", "SetNumber")
+                        .IsUnique();
 
-                    b.ToTable("Sets");
+                    b.ToTable("Sets", t =>
+                        {
+                            t.HasCheckConstraint("CK_Sets_SetNumber", "[SetNumber] BETWEEN 1 AND 5");
+                        });
                 });
 
             modelBuilder.Entity("VolleyballStatTracker.Models.StatEntry", b =>
@@ -115,7 +127,10 @@ namespace VolleyballStatTracker.Migrations
 
                     b.HasIndex("SetId");
 
-                    b.ToTable("StatEntries");
+                    b.ToTable("StatEntries", t =>
+                        {
+                            t.HasCheckConstraint("CK_StatEntries_Grade", "[Grade] IS NULL OR [Grade] BETWEEN 0 AND 3");
+                        });
                 });
 
             modelBuilder.Entity("VolleyballStatTracker.Models.Set", b =>

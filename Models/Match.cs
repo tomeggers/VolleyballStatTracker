@@ -2,6 +2,8 @@ namespace VolleyballStatTracker.Models;
 
 public class Match
 {
+    public const int OpponentMaxLength = 100;
+
     public int Id { get; set; }
     public required string Opponent { get; set; }
     public DateOnly Date { get; set; }

@@ -32,7 +32,12 @@ else
                     <td>@row.Match.Opponent</td>
                     <td>@row.SetsWon&ndash;@row.SetsLost</td>
                     <td>@(row.Match.IsFinished ? "Finished" : "In progress")</td>
-                    <td><a asp-page="Log" asp-route-setId="@row.LatestSetId">@(row.Match.IsFinished ? "View" : "Continue")</a></td>
+                    <td>
+                        @if (row.LatestSetId is not null)
+                        {
+                            <a asp-page="Log" asp-route-setId="@row.LatestSetId">@(row.Match.IsFinished ? "View" : "Continue")</a>
+                        }
+                    </td>
                 </tr>
             }
         </tbody>

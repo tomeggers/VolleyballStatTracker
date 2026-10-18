@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using VolleyballStatTracker.Data;
@@ -8,6 +9,8 @@ namespace VolleyballStatTracker.Pages.Matches;
 public class CreateModel(AppDbContext db) : PageModel
 {
     [BindProperty]
+    [Required(ErrorMessage = "Enter the opponent.")]
+    [StringLength(Match.OpponentMaxLength)]
     public string Opponent { get; set; } = "";
 
     [BindProperty]
@@ -17,12 +20,12 @@ public class CreateModel(AppDbContext db) : PageModel
 
     public async Task<IActionResult> OnPostAsync()
     {
-        if (string.IsNullOrWhiteSpace(Opponent))
+        if (!ModelState.IsValid)
         {
             return Page();
         }
 
-        var match = new Match { Opponent = Opponent, Date = Date };
+        var match = new Match { Opponent = Opponent.Trim(), Date = Date };
         match.Sets.Add(new Set { SetNumber = 1 });
 
         db.Matches.Add(match);

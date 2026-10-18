@@ -19,10 +19,12 @@
     <label>
         Name
         <input asp-for="NewName" />
+        <span asp-validation-for="NewName" class="text-danger"></span>
     </label>
     <label>
         Shirt number
-        <input asp-for="NewShirtNumber" type="number" />
+        <input asp-for="NewShirtNumber" type="number" min="0" max="99" />
+        <span asp-validation-for="NewShirtNumber" class="text-danger"></span>
     </label>
     <button type="submit">Add</button>
 </form>
