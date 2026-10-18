@@ -1,16 +1,17 @@
-@page "{setId:int}"
+﻿@page "{setId:int}"
 @model VolleyballStatTracker.Pages.Matches.LogModel
 @using VolleyballStatTracker.Models
 @{
     ViewData["Title"] = "Log stats";
 
     // The action pad, one row per skill: our point on the left, rally continues in the middle, their point on the right.
-    var padRows = new (string Skill, (StatType Type, string Label)?[] Actions)[]
+    // Key is the keyboard shortcut for logging from video on a laptop.
+    var padRows = new (string Skill, (StatType Type, string Label, string Key)?[] Actions)[]
     {
-        ("Attack", [(StatType.Kill, "Kill"), (StatType.AttackInPlay, "In play"), (StatType.AttackError, "Error")]),
-        ("Serve", [(StatType.ServiceAce, "Ace"), (StatType.ServeInPlay, "In play"), (StatType.ServiceError, "Error")]),
-        ("Block", [(StatType.BlockSolo, "Solo"), (StatType.BlockAssist, "Assist"), null]),
-        ("Defence", [(StatType.Dig, "Dig"), (StatType.Assist, "Set assist"), null]),
+        ("Attack", [(StatType.Kill, "Kill", "K"), (StatType.AttackInPlay, "In play", "I"), (StatType.AttackError, "Error", "E")]),
+        ("Serve", [(StatType.ServiceAce, "Ace", "S"), (StatType.ServeInPlay, "In play", "V"), (StatType.ServiceError, "Error", "X")]),
+        ("Block", [(StatType.BlockSolo, "Solo", "B"), (StatType.BlockAssist, "Assist", "N"), null]),
+        ("Defence", [(StatType.Dig, "Dig", "D"), (StatType.Assist, "Set assist", "A"), null]),
     };
     var last = Model.LastEntry;
 }
@@ -61,7 +62,9 @@ else
 
             <button type="submit" id="opp-point" class="btn-act btn-them opp-point"
                     asp-page-handler="OpponentPoint" asp-route-setId="@Model.CurrentSet.Id"
-                    data-scores="true" disabled="@Model.IsLocked(StatType.OpponentPoint)">
+                    data-scores="true" data-key="o" aria-keyshortcuts="O"
+                    disabled="@Model.IsLocked(StatType.OpponentPoint)">
+                <kbd class="key-hint">O</kbd>
                 Opponent point <small>their kill / ace</small>
             </button>
 
@@ -69,7 +72,8 @@ else
                 <span id="last-entry">@(last is null ? "No entries yet" : Model.Describe(last))</span>
                 <button type="submit" id="undo" class="undo"
                         asp-page-handler="Undo" asp-route-setId="@Model.CurrentSet.Id"
-                        disabled="@(last is null)">Undo</button>
+                        data-key="backspace" aria-keyshortcuts="Backspace"
+                        disabled="@(last is null)">Undo <kbd class="key-hint">&#9003;</kbd></button>
             </div>
 
             <p id="status" class="status" role="status" hidden></p>
@@ -90,7 +94,7 @@ else
             @foreach (var player in Model.Players)
             {
                 <input type="radio" class="btn-check" name="playerId" id="p-@player.Id" value="@player.Id"
-                       data-label="#@player.ShirtNumber @LogModel.ShortName(player)"
+                       data-label="#@player.ShirtNumber @LogModel.ShortName(player)" data-number="@player.ShirtNumber"
                        checked="@(Model.SelectedPlayerId == player.Id)" />
                 <label class="tile" for="p-@player.Id">
                     <span class="num">@player.ShirtNumber</span>
@@ -114,7 +118,9 @@ else
                             <button type="submit" class="btn-act btn-@effect"
                                     asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id" asp-route-statType="@a.Type"
                                     data-scores="@(LogModel.Scores(a.Type) ? "true" : "false")" data-needs-player="true"
+                                    data-key="@a.Key.ToLowerInvariant()" aria-keyshortcuts="@a.Key"
                                     disabled="@Model.IsLocked(a.Type)">
+                                <kbd class="key-hint">@a.Key</kbd>
                                 @a.Label
                                 @if (effect != "none")
                                 {
@@ -130,6 +136,11 @@ else
                 </div>
             }
 
+            <p class="key-legend">
+                Keys: type a shirt number to pick a player &middot; R then 0&ndash;3 for a pass &middot;
+                O opponent point &middot; Backspace undo &middot; Esc clears the player
+            </p>
+
             <div class="pad-row reception">
                 <span class="skill">Pass</span>
                 @for (var grade = 0; grade <= 3; grade++)
@@ -139,8 +150,10 @@ else
                             asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id"
                             asp-route-statType="@StatType.Reception" asp-route-grade="@grade"
                             data-scores="@(LogModel.Scores(StatType.Reception, grade) ? "true" : "false")" data-needs-player="true"
+                            data-key="r@(grade)" aria-keyshortcuts="R @grade"
                             disabled="@Model.IsLocked(StatType.Reception, grade)"
                             aria-label="Reception grade @grade">
+                        <kbd class="key-hint">R @grade</kbd>
                         @grade
                         @if (grade == 0)
                         {
