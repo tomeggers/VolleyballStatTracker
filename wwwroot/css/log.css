@@ -1,0 +1,106 @@
+/* Live logging screen. Colours checked against WCAG AA (4.5:1 for text). */
+:root {
+    --us-bg: #1B6E35;      --us-fg: #FFFFFF;      /* 6.31:1 */
+    --them-bg: #B3261E;    --them-fg: #FFFFFF;    /* 6.54:1 */
+    --none-bg: #E4E7EB;    --none-fg: #1F2933;    /* 11.89:1 */
+    --locked-bg: #E5E7EB;  --locked-fg: #4B5563;  /* 6.10:1 */
+    --page-bg: #FFFFFF;
+    --selected: #0B5CAD;
+}
+
+[data-bs-theme="dark"] {
+    --us-bg: #4ADE80;      --us-fg: #0B1F13;      /* 9.88:1 */
+    --them-bg: #FF8A80;    --them-fg: #2A0B0B;    /* 7.99:1 */
+    --none-bg: #2B3036;    --none-fg: #E5E7EB;    /* 10.74:1 */
+    --locked-bg: #1B1F23;  --locked-fg: #9AA3AD;  /* 6.49:1 */
+    --page-bg: #14171A;
+    --selected: #FFD54A;
+}
+
+[data-bs-theme="dark"] body { background: var(--page-bg); }
+
+.match-header { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; align-items: center; font-size: 15px; margin-bottom: 0.5rem; }
+.finished-badge { background: var(--none-fg); color: var(--page-bg); border-radius: 4px; padding: 0.1rem 0.5rem; font-size: 0.85rem; }
+
+.set-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.set-tab { padding: 6px 12px; border: 1px solid var(--locked-fg); border-radius: 6px; text-decoration: none; color: inherit; font-size: 14px; }
+.set-tab.active { border-width: 2px; border-color: var(--selected); font-weight: 700; }
+.set-tab.won { background: var(--us-bg); color: var(--us-fg); }
+.set-tab.lost { background: var(--them-bg); color: var(--them-fg); }
+
+/* Score, opponent point and undo stay on screen while the grid and pad scroll. */
+.log-sticky { position: sticky; top: 0; z-index: 10; background: var(--page-bg); padding: 8px 0; display: grid; gap: 8px; }
+
+.scoreboard { text-align: center; font-size: 40px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.scoreboard .us, .scoreboard .them { font-size: 14px; letter-spacing: 0.05em; }
+.scoreboard b { font-size: 40px; display: inline-block; }
+.scoreboard .dash { margin: 0 12px; }
+.scoreboard b.bump { animation: bump 200ms ease-out; }
+@keyframes bump { 50% { transform: scale(1.25); } }
+
+.btn-act {
+    min-height: 56px; min-width: 48px; border: 2px solid transparent; border-radius: 8px;
+    font-size: 16px; font-weight: 600; line-height: 1.15; padding: 6px 8px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    touch-action: manipulation; /* no double-tap zoom delay on phones */
+}
+.btn-us { background: var(--us-bg); color: var(--us-fg); }
+.btn-them { background: var(--them-bg); color: var(--them-fg); }
+.btn-none { background: var(--none-bg); color: var(--none-fg); }
+.btn-end { background: var(--none-fg); color: var(--page-bg); }
+.btn-act .effect, .btn-act small { font-size: 12px; font-weight: 500; }
+.btn-act.flash { filter: invert(1); }
+.btn-act:disabled { background: var(--locked-bg); color: var(--locked-fg); border: 2px dashed var(--locked-fg); cursor: not-allowed; }
+
+.opp-point { width: 100%; min-height: 52px; flex-direction: row; gap: 8px; margin-bottom: 8px; }
+
+.last-entry {
+    display: flex; align-items: center; gap: 8px; min-height: 48px; padding-left: 12px;
+    border-left: 6px solid var(--none-bg); background: var(--none-bg); color: var(--none-fg);
+    border-radius: 8px; font-size: 15px;
+}
+.last-entry[data-effect="us"] { border-left-color: var(--us-bg); }
+.last-entry[data-effect="them"] { border-left-color: var(--them-bg); }
+.last-entry span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.undo { min-height: 48px; min-width: 96px; border: none; border-radius: 0 8px 8px 0; background: var(--none-fg); color: var(--page-bg); font-weight: 700; font-size: 16px; }
+.undo:disabled { opacity: 0.5; }
+
+.status { margin: 0; padding: 8px 12px; border-radius: 8px; font-size: 15px; font-weight: 600; }
+.status[data-kind="pending"] { background: var(--none-bg); color: var(--none-fg); }
+.status[data-kind="warn"] { background: #FFF3CD; color: #664D03; }  /* 7.21:1 */
+.status[data-kind="error"] { background: var(--them-bg); color: var(--them-fg); }
+
+.set-over { text-align: center; font-weight: 600; margin: 8px 0; }
+
+.player-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin: 16px 0; border: 0; padding: 0; }
+.tile {
+    min-height: 56px; border-radius: 8px; background: var(--none-bg); color: var(--none-fg);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    border: 3px solid transparent; cursor: pointer; overflow: hidden; touch-action: manipulation;
+}
+.tile .num { font-size: 24px; font-weight: 700; line-height: 1; }
+.tile .name { font-size: 12px; max-width: 100%; padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.btn-check:checked + .tile { border-color: var(--selected); background: var(--selected); color: var(--page-bg); }
+.btn-check:focus-visible + .tile { outline: 3px solid var(--selected); outline-offset: 2px; }
+
+.acting { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.acting.empty { color: var(--locked-fg); font-weight: 600; }
+
+.pad-row { display: grid; grid-template-columns: 64px repeat(3, 1fr); gap: 8px; margin-bottom: 8px; align-items: stretch; }
+.pad-row .skill { align-self: center; font-size: 13px; font-weight: 600; color: var(--locked-fg); }
+.pad-row.reception { grid-template-columns: 64px repeat(4, 1fr); margin-top: 16px; }
+.pad-row.reception .btn-act { min-height: 64px; font-size: 20px; }
+
+.match-actions { display: flex; justify-content: center; gap: 16px; margin: 24px 0; }
+.match-actions .btn-act { min-height: 48px; padding: 8px 16px; }
+
+/* Laptop, for logging from video: grid and pad side by side. */
+@media (min-width: 992px) {
+    #log-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0 32px; align-items: start; }
+    .log-sticky, .set-over { grid-column: 1 / -1; }
+    .player-grid { grid-template-columns: repeat(6, 1fr); margin-top: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .scoreboard b.bump { animation: none; }
+}

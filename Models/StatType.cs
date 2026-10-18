@@ -50,6 +50,13 @@ public static class StatRules
         (StatType.Assist, "Assist")
     ];
 
+    public static string Label(StatType statType, int? grade) => statType switch
+    {
+        StatType.Reception => $"Reception {grade}",
+        StatType.OpponentPoint => "Opponent point",
+        _ => PlayerActions.First(a => a.Type == statType).Label
+    };
+
     // Opponent points have no player; reception needs a 0-3 grade; nothing else takes a grade.
     public static bool IsValidEntry(StatType statType, bool hasPlayer, int? grade) =>
         Enum.IsDefined(statType) && statType switch

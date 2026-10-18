@@ -12,6 +12,7 @@ public class LogModel(AppDbContext db) : PageModel
     public Match Match { get; set; } = null!;
     public List<Player> Players { get; set; } = [];
     public List<SetSummary> SetSummaries { get; set; } = [];
+    public int? SelectedPlayerId { get; set; }
 
     public SetSummary Current => SetSummaries.First(s => s.SetId == CurrentSet.Id);
     public int SetsWon => SetSummaries.Count(s => s.Result == SetResult.Won);
@@ -24,56 +25,71 @@ public class LogModel(AppDbContext db) : PageModel
         && CurrentSet.SetNumber < StatRules.MaxSets
         && !StatRules.IsMatchDecided(SetsWon, SetsLost);
 
+    public StatEntry? LastEntry => CurrentSet.StatEntries.OrderByDescending(e => e.Id).FirstOrDefault();
+
     public record SetSummary(int SetId, int SetNumber, int Us, int Them, SetResult Result);
+
+    // What the page's script needs to redraw after a tap, without reloading.
+    public record LogState(
+        bool Accepted,
+        int Us,
+        int Them,
+        string SetResult,
+        int SetsWon,
+        int SetsLost,
+        bool CanAddSet,
+        string? LastEntry,
+        string LastEntryEffect);
 
     // A point-scoring tap is locked once the set is decided; assists and digs on the final rally still go in.
     public bool IsLocked(StatType statType, int? grade = null) =>
-        IsSetOver && StatRules.GetPointResult(statType, grade) != PointResult.None;
+        IsSetOver && Scores(statType, grade);
 
-    public static string ButtonClass(StatType statType, int? grade = null) =>
+    public static bool Scores(StatType statType, int? grade = null) =>
+        StatRules.GetPointResult(statType, grade) != PointResult.None;
+
+    public static string Effect(StatType statType, int? grade = null) =>
         StatRules.GetPointResult(statType, grade) switch
         {
-            PointResult.UsScored => "btn-us",
-            PointResult.ThemScored => "btn-them",
-            _ => "btn-neutral"
+            PointResult.UsScored => "us",
+            PointResult.ThemScored => "them",
+            _ => "none"
         };
 
-    public async Task<IActionResult> OnGetAsync(int setId)
+    public static string ShortName(Player player) =>
+        player.Name.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? player.Name;
+
+    public string Describe(StatEntry entry)
     {
-        // Load from the match down: a no-tracking query can't Include set -> match -> sets (a cycle).
-        var match = await db.Matches
-            .AsNoTracking()
-            .Include(m => m.Sets)
-                .ThenInclude(s => s.StatEntries)
-            .FirstOrDefaultAsync(m => m.Sets.Any(s => s.Id == setId));
-        var set = match?.Sets.FirstOrDefault(s => s.Id == setId);
-        if (match is null || set is null)
+        var player = Players.FirstOrDefault(p => p.Id == entry.PlayerId);
+        var who = player is null ? "" : $" · #{player.ShirtNumber} {ShortName(player)}";
+        var effect = Effect(entry.StatType, entry.Grade) switch
+        {
+            "us" => " · +1 us",
+            "them" => " · +1 them",
+            _ => ""
+        };
+        return StatRules.Label(entry.StatType, entry.Grade) + who + effect;
+    }
+
+    public async Task<IActionResult> OnGetAsync(int setId, int? playerId)
+    {
+        if (!await LoadAsync(setId))
         {
             return NotFound();
         }
 
-        Match = match;
-        CurrentSet = set;
-        Players = await db.Players.AsNoTracking().OrderBy(p => p.ShirtNumber).ToListAsync();
-        SetSummaries = Match.Sets
-            .OrderBy(s => s.SetNumber)
-            .Select(s =>
-            {
-                var (us, them) = StatRules.Score(s.StatEntries);
-                return new SetSummary(s.Id, s.SetNumber, us, them, StatRules.GetSetResult(s.SetNumber, us, them));
-            })
-            .ToList();
-
+        SelectedPlayerId = Players.Any(p => p.Id == playerId) ? playerId : null;
         return Page();
     }
 
     public Task<IActionResult> OnPostLogStatAsync(int setId, int? playerId, StatType statType, int? grade) =>
         AddEntryAsync(setId, playerId, statType, grade);
 
-    public Task<IActionResult> OnPostOpponentPointAsync(int setId) =>
-        AddEntryAsync(setId, null, StatType.OpponentPoint, null);
+    public Task<IActionResult> OnPostOpponentPointAsync(int setId, int? playerId) =>
+        AddEntryAsync(setId, null, StatType.OpponentPoint, null, keepPlayerId: playerId);
 
-    public async Task<IActionResult> OnPostUndoAsync(int setId)
+    public async Task<IActionResult> OnPostUndoAsync(int setId, int? playerId)
     {
         var set = await db.Sets.Include(s => s.Match).FirstOrDefaultAsync(s => s.Id == setId);
         if (set is null)
@@ -81,6 +97,7 @@ public class LogModel(AppDbContext db) : PageModel
             return NotFound();
         }
 
+        var removed = false;
         if (!set.Match!.IsFinished)
         {
             var last = await db.StatEntries
@@ -92,10 +109,11 @@ public class LogModel(AppDbContext db) : PageModel
             {
                 db.StatEntries.Remove(last);
                 await db.SaveChangesAsync();
+                removed = true;
             }
         }
 
-        return RedirectToPage(new { setId });
+        return await RespondAsync(setId, removed, playerId);
     }
 
     public async Task<IActionResult> OnPostNextSetAsync(int setId)
@@ -164,7 +182,8 @@ public class LogModel(AppDbContext db) : PageModel
         return updated == 0 ? NotFound() : RedirectToPage(new { setId });
     }
 
-    private async Task<IActionResult> AddEntryAsync(int setId, int? playerId, StatType statType, int? grade)
+    private async Task<IActionResult> AddEntryAsync(
+        int setId, int? playerId, StatType statType, int? grade, int? keepPlayerId = null)
     {
         // An undefined enum value (e.g. statType=99) fails binding and silently becomes Kill,
         // so a binding error has to be rejected here rather than trusted.
@@ -189,10 +208,10 @@ public class LogModel(AppDbContext db) : PageModel
 
         var (us, them) = StatRules.Score(set.StatEntries);
         var setOver = StatRules.GetSetResult(set.SetNumber, us, them) != SetResult.InProgress;
-        var scoresPoint = StatRules.GetPointResult(statType, grade) != PointResult.None;
 
         // Once the match is ended, or the set is decided, only Undo can change the score.
-        if (!set.Match!.IsFinished && !(setOver && scoresPoint))
+        var accepted = !set.Match!.IsFinished && !(setOver && Scores(statType, grade));
+        if (accepted)
         {
             db.StatEntries.Add(new StatEntry
             {
@@ -204,6 +223,57 @@ public class LogModel(AppDbContext db) : PageModel
             await db.SaveChangesAsync();
         }
 
-        return RedirectToPage(new { setId });
+        return await RespondAsync(setId, accepted, keepPlayerId ?? playerId);
+    }
+
+    // The page's script asks for JSON so it can update in place; a plain form post gets a redirect.
+    private async Task<IActionResult> RespondAsync(int setId, bool accepted, int? playerId)
+    {
+        if (!Request.Headers.Accept.ToString().Contains("application/json"))
+        {
+            return RedirectToPage(new { setId, playerId });
+        }
+
+        await LoadAsync(setId);
+        var last = LastEntry;
+        return new JsonResult(new LogState(
+            accepted,
+            Current.Us,
+            Current.Them,
+            Current.Result.ToString(),
+            SetsWon,
+            SetsLost,
+            CanAddSet,
+            last is null ? null : Describe(last),
+            last is null ? "none" : Effect(last.StatType, last.Grade)));
+    }
+
+    private async Task<bool> LoadAsync(int setId)
+    {
+        // Load from the match down: a no-tracking query can't Include set -> match -> sets (a cycle).
+        var match = await db.Matches
+            .AsNoTracking()
+            .Include(m => m.Sets)
+                .ThenInclude(s => s.StatEntries)
+            .FirstOrDefaultAsync(m => m.Sets.Any(s => s.Id == setId));
+        var set = match?.Sets.FirstOrDefault(s => s.Id == setId);
+        if (match is null || set is null)
+        {
+            return false;
+        }
+
+        Match = match;
+        CurrentSet = set;
+        Players = await db.Players.AsNoTracking().OrderBy(p => p.ShirtNumber).ToListAsync();
+        SetSummaries = match.Sets
+            .OrderBy(s => s.SetNumber)
+            .Select(s =>
+            {
+                var (us, them) = StatRules.Score(s.StatEntries);
+                return new SetSummary(s.Id, s.SetNumber, us, them, StatRules.GetSetResult(s.SetNumber, us, them));
+            })
+            .ToList();
+
+        return true;
     }
 }
