@@ -16,6 +16,8 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
+    <!-- Pinned: Microsoft.Data.SqlClient 6.1.7 pulls in Pkcs 9.0.11 (CVE-2026-84008, CVE-2026-70162). Remove once SqlClient ships a fixed version. -->
+    <PackageReference Include="System.Security.Cryptography.Pkcs" Version="10.0.13" />
   </ItemGroup>
 
 </Project>
