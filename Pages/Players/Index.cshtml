@@ -1,0 +1,28 @@
+@page
+@model VolleyballStatTracker.Pages.Players.IndexModel
+@{
+    ViewData["Title"] = "Players";
+}
+
+<h1>Players</h1>
+
+<ul>
+    @foreach (var player in Model.Players)
+    {
+        <li>#@player.ShirtNumber &ndash; @player.Name</li>
+    }
+</ul>
+
+<h2>Add a player</h2>
+
+<form method="post">
+    <label>
+        Name
+        <input asp-for="NewName" />
+    </label>
+    <label>
+        Shirt number
+        <input asp-for="NewShirtNumber" type="number" />
+    </label>
+    <button type="submit">Add</button>
+</form>

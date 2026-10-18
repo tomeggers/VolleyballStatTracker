@@ -1,0 +1,19 @@
+@page
+@model VolleyballStatTracker.Pages.Matches.CreateModel
+@{
+    ViewData["Title"] = "New match";
+}
+
+<h1>New match</h1>
+
+<form method="post">
+    <label>
+        Opponent
+        <input asp-for="Opponent" />
+    </label>
+    <label>
+        Date
+        <input asp-for="Date" type="date" />
+    </label>
+    <button type="submit">Start match</button>
+</form>

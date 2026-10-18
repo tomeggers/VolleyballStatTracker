@@ -1,0 +1,111 @@
+@page "{setId:int}"
+@model VolleyballStatTracker.Pages.Matches.LogModel
+@using VolleyballStatTracker.Models
+@{
+    ViewData["Title"] = "Log stats";
+}
+
+<style>
+    .scoreboard { font-size: 2.5rem; font-weight: bold; text-align: center; margin-bottom: 0.5rem; }
+    .scoreboard .us { color: #1a7a1a; }
+    .scoreboard .them { color: #a31515; }
+    .top-actions { display: flex; justify-content: center; gap: 1rem; margin-bottom: 1.5rem; }
+    .top-actions form button { padding: 0.5rem 1rem; }
+    details.player { border: 1px solid #ccc; border-radius: 6px; margin-bottom: 0.5rem; padding: 0.5rem; }
+    details.player summary { font-size: 1.2rem; font-weight: bold; cursor: pointer; }
+    .actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .actions form { margin: 0; }
+    .actions button { padding: 0.75rem 1rem; border: none; border-radius: 6px; font-size: 1rem; cursor: pointer; }
+    .btn-us { background: #d4f4d4; color: #1a7a1a; }
+    .btn-them { background: #f9d6d6; color: #a31515; }
+    .btn-neutral { background: #e6e6e6; color: #333; }
+    .reception-row { display: flex; gap: 0.5rem; align-items: center; margin-top: 0.5rem; }
+</style>
+
+<p>@Model.CurrentSet.Match!.Opponent &ndash; Set @Model.CurrentSet.SetNumber</p>
+
+<div class="scoreboard">
+    <span class="us">US @Model.UsScore</span> &ndash; <span class="them">@Model.ThemScore OPPONENT</span>
+</div>
+
+<div class="top-actions">
+    <form method="post" asp-page-handler="OpponentPoint" asp-route-setId="@Model.CurrentSet.Id">
+        <button type="submit" class="btn-them">Opponent point (their kill/ace)</button>
+    </form>
+    <form method="post" asp-page-handler="Undo" asp-route-setId="@Model.CurrentSet.Id">
+        <button type="submit" class="btn-neutral">Undo last entry</button>
+    </form>
+</div>
+
+@foreach (var player in Model.Players)
+{
+    <details class="player">
+        <summary>#@player.ShirtNumber &ndash; @player.Name</summary>
+
+        <div class="actions">
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.Kill" />
+                <button type="submit" class="btn-us">Kill</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.AttackError" />
+                <button type="submit" class="btn-them">Attack error</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.AttackInPlay" />
+                <button type="submit" class="btn-neutral">Attack, in play</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.ServiceAce" />
+                <button type="submit" class="btn-us">Service ace</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.ServiceError" />
+                <button type="submit" class="btn-them">Service error</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.ServeInPlay" />
+                <button type="submit" class="btn-neutral">Serve, in play</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.BlockSolo" />
+                <button type="submit" class="btn-us">Block, solo</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.BlockAssist" />
+                <button type="submit" class="btn-us">Block, assist</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.Dig" />
+                <button type="submit" class="btn-neutral">Dig</button>
+            </form>
+            <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                <input type="hidden" name="playerId" value="@player.Id" />
+                <input type="hidden" name="statType" value="@StatType.Assist" />
+                <button type="submit" class="btn-neutral">Assist</button>
+            </form>
+        </div>
+
+        <div class="reception-row">
+            <span>Reception:</span>
+            @for (var grade = 0; grade <= 3; grade++)
+            {
+                <form method="post" asp-page-handler="LogStat" asp-route-setId="@Model.CurrentSet.Id">
+                    <input type="hidden" name="playerId" value="@player.Id" />
+                    <input type="hidden" name="statType" value="@StatType.Reception" />
+                    <input type="hidden" name="grade" value="@grade" />
+                    <button type="submit" class="@(grade == 0 ? "btn-them" : "btn-neutral")">@grade</button>
+                </form>
+            }
+        </div>
+    </details>
+}
